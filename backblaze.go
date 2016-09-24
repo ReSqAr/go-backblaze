@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/pquerna/ffjson/ffjson"
 )
@@ -35,6 +36,9 @@ type B2 struct {
 
 	// If true, don't retry requests if authorization has expired
 	NoRetry bool
+
+	// Number of retries
+	Retries uint
 
 	// If true, display debugging information about API calls
 	Debug bool
@@ -87,6 +91,8 @@ func NewB2(creds Credentials) (*B2, error) {
 	c := &B2{
 		Credentials: creds,
 	}
+
+	c.Retries = 1
 
 	// Authorize account
 	if err := c.AuthorizeAccount(); err != nil {
@@ -265,17 +271,26 @@ func (c *B2) apiRequest(apiPath string, request interface{}, response interface{
 		log.Printf("apiRequest: %s %s", apiPath, body)
 	}
 
-	err = c.tryAPIRequest(apiPath, body, response)
+	for i := uint(0); i < c.Retries+1; i++ {
+		err = c.tryAPIRequest(apiPath, body, response)
 
-	// Retry after non-fatal errors
-	if b2err, ok := err.(*B2Error); ok {
-		if !b2err.IsFatal() && !c.NoRetry {
-			if c.Debug {
-				log.Printf("Retrying request %q due to error: %v", apiPath, err)
+		// Retry after non-fatal errors
+		if b2err, ok := err.(*B2Error); ok {
+			if !b2err.IsFatal() && !c.NoRetry && i < c.Retries {
+				if c.Debug {
+					log.Printf("Retrying request %q due to error: %v", apiPath, err)
+				}
+				var wait time.Duration = time.Duration(1<<i) * time.Second
+				time.Sleep(wait)
+				continue
 			}
-
-			return c.tryAPIRequest(apiPath, body, response)
 		}
+		// If we do not continue we break
+		break
+	}
+
+	if err != nil && c.Debug {
+		log.Printf("Giving up on request %q due to error: %v", apiPath, err)
 	}
 	return err
 }

@@ -104,10 +104,10 @@ func (b *Bucket) UploadHashedTypedFile(
 	}
 
 	if b.b2.Debug {
-		fmt.Printf("         Upload: %s/%s\n", b.Name, name)
-		fmt.Printf("           SHA1: %s\n", sha1Hash)
-		fmt.Printf("  ContentLength: %d\n", contentLength)
-		fmt.Printf("    ContentType: %s\n", contentType)
+		log.Printf("         Upload: %s/%s\n", b.Name, name)
+		log.Printf("           SHA1: %s\n", sha1Hash)
+		log.Printf("  ContentLength: %d\n", contentLength)
+		log.Printf("    ContentType: %s\n", contentType)
 	}
 
 	// Create authorized request
